@@ -3,6 +3,7 @@ package com.krishvas.kitchen.service;
 import com.krishvas.kitchen.dto.AuthResponse;
 import com.krishvas.kitchen.dto.LoginRequest;
 import com.krishvas.kitchen.dto.RegisterRequest;
+import com.krishvas.kitchen.dto.UpdateProfileRequest;
 import com.krishvas.kitchen.dto.UserProfileResponse;
 import com.krishvas.kitchen.entity.Admin;
 import com.krishvas.kitchen.entity.Role;
@@ -76,6 +77,22 @@ public class AuthService {
         User current = userRepository.findById(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
         var uploaded = imageService.upload(file, "PROFILE", user.getId());
         current.setProfileImageId(uploaded.getId());
+        userRepository.save(current);
+        return profile(current);
+    }
+
+    public UserProfileResponse updateProfile(User user, UpdateProfileRequest request) {
+        User current = userRepository.findById(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (current.getRole() == Role.ADMIN) {
+            throw new IllegalArgumentException("Admin profile editing is disabled");
+        }
+        String nextName = request.fullName() == null ? "" : request.fullName().trim();
+        if (!nextName.isBlank()) {
+            current.setFullName(nextName);
+        }
+        if (request.phone() != null) {
+            current.setPhone(request.phone().trim());
+        }
         userRepository.save(current);
         return profile(current);
     }
