@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface HeroBannerRepository extends JpaRepository<HeroBanner, Long> {
     List<HeroBanner> findByActiveTrueOrderByPositionOrderAsc();
+    List<HeroBanner> findAllByOrderByPositionOrderAsc();
 }

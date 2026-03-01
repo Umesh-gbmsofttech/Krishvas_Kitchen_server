@@ -1,5 +1,6 @@
 package com.krishvas.kitchen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,11 +33,12 @@ public class Menu {
 
     @ManyToOne
     @JoinColumn(name = "created_by_user_id")
+    @JsonIgnore
     private User createdBy;
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
-    @OneToMany(mappedBy = "menu", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "menu", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<MenuItem> items = new ArrayList<>();
 }

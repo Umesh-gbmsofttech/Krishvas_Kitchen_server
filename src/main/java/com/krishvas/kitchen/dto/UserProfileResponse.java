@@ -2,11 +2,12 @@ package com.krishvas.kitchen.dto;
 
 import com.krishvas.kitchen.entity.Role;
 
-public record AuthResponse(
-    Long userId,
+public record UserProfileResponse(
+    Long id,
     String fullName,
     String email,
+    String phone,
     Role role,
-    String token,
+    boolean deliveryBadge,
     String profileImageUrl
 ) {}

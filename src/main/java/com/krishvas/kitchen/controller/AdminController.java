@@ -45,4 +45,17 @@ public class AdminController {
     public ResponseEntity<?> createBanner(@RequestBody HeroBannerRequest request) {
         return ResponseEntity.ok(bannerService.save(request));
     }
+
+    @GetMapping("/banners")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> allBanners() {
+        return ResponseEntity.ok(bannerService.allBanners());
+    }
+
+    @DeleteMapping("/banners/{bannerId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteBanner(@PathVariable Long bannerId) {
+        bannerService.delete(bannerId);
+        return ResponseEntity.ok().build();
+    }
 }

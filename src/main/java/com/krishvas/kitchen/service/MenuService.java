@@ -44,7 +44,14 @@ public class MenuService {
         LocalDate today = LocalDate.now();
         return menuRepository.findByScheduleDate(today)
             .or(() -> menuRepository.findByScheduleDateLessThanEqualOrderByScheduleDateDesc(today).stream().findFirst())
-            .orElseThrow(() -> new IllegalArgumentException("No menu scheduled yet"));
+            .orElseGet(() -> {
+                Menu empty = new Menu();
+                empty.setTitle("Today's Menu");
+                empty.setDescription("No menu scheduled yet.");
+                empty.setScheduleDate(today);
+                empty.setTemplate(false);
+                return empty;
+            });
     }
 
     public List<Menu> listScheduled(LocalDate start, LocalDate end) {

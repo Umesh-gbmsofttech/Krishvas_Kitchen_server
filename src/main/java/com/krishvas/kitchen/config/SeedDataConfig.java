@@ -37,8 +37,7 @@ public class SeedDataConfig {
     @Bean
     public CommandLineRunner seedDataRunner() {
         return args -> {
-            authService.ensureAdminSeed(adminName, adminEmail, adminPassword);
-            User admin = userRepository.findByEmail(adminEmail.toLowerCase()).orElseThrow();
+            User admin = authService.ensureAdminSeed(adminName, adminEmail, adminPassword);
 
             if (menuService.suggestions().isEmpty()) {
                 MenuRequest menuToday = new MenuRequest(

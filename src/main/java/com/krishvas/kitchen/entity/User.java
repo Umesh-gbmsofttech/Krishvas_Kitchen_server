@@ -1,5 +1,6 @@
 package com.krishvas.kitchen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +23,7 @@ public class User {
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String passwordHash;
 
     @Column(nullable = false)
@@ -31,6 +33,8 @@ public class User {
     private String phone;
 
     private boolean deliveryBadge;
+
+    private Long profileImageId;
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();

@@ -3,6 +3,7 @@ package com.krishvas.kitchen.service;
 import com.krishvas.kitchen.dto.AuthResponse;
 import com.krishvas.kitchen.dto.LoginRequest;
 import com.krishvas.kitchen.dto.RegisterRequest;
+import com.krishvas.kitchen.dto.UserProfileResponse;
 import com.krishvas.kitchen.entity.Admin;
 import com.krishvas.kitchen.entity.Role;
 import com.krishvas.kitchen.entity.User;
@@ -12,6 +13,10 @@ import com.krishvas.kitchen.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +26,8 @@ public class AuthService {
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final ImageService imageService;
+    private final ImageUrlService imageUrlService;
 
     public AuthResponse register(RegisterRequest request) {
         userRepository.findByEmail(request.email()).ifPresent(u -> {
@@ -48,23 +55,70 @@ public class AuthService {
 
     public AuthResponse toAuthResponse(User user) {
         String token = jwtService.generateToken(user.getEmail(), user.getRole().name(), user.getId());
-        return new AuthResponse(user.getId(), user.getFullName(), user.getEmail(), user.getRole(), token);
+        String profileImageUrl = imageUrlService.toImageUrl(user.getProfileImageId());
+        return new AuthResponse(user.getId(), user.getFullName(), user.getEmail(), user.getRole(), token, profileImageUrl);
     }
 
-    public void ensureAdminSeed(String name, String email, String password) {
-        if (userRepository.findByEmail(email.toLowerCase()).isPresent()) {
-            return;
-        }
-        User adminUser = new User();
-        adminUser.setFullName(name);
-        adminUser.setEmail(email.toLowerCase());
-        adminUser.setPhone("9999999999");
-        adminUser.setPasswordHash(passwordEncoder.encode(password));
-        adminUser.setRole(Role.ADMIN);
-        User saved = userRepository.save(adminUser);
+    public UserProfileResponse profile(User user) {
+        User current = userRepository.findById(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return new UserProfileResponse(
+            current.getId(),
+            current.getFullName(),
+            current.getEmail(),
+            current.getPhone(),
+            current.getRole(),
+            current.isDeliveryBadge(),
+            imageUrlService.toImageUrl(current.getProfileImageId())
+        );
+    }
 
-        Admin admin = new Admin();
-        admin.setUser(saved);
-        adminRepository.save(admin);
+    public UserProfileResponse uploadProfileImage(User user, MultipartFile file) {
+        User current = userRepository.findById(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        var uploaded = imageService.upload(file, "PROFILE", user.getId());
+        current.setProfileImageId(uploaded.getId());
+        userRepository.save(current);
+        return profile(current);
+    }
+
+    @Transactional
+    public User ensureAdminSeed(String name, String email, String password) {
+        String configuredEmail = email.toLowerCase();
+
+        User configuredAdmin = userRepository.findByEmail(configuredEmail).orElseGet(() -> {
+            User user = new User();
+            user.setEmail(configuredEmail);
+            user.setPhone("9999999999");
+            return user;
+        });
+
+        configuredAdmin.setFullName(name);
+        configuredAdmin.setRole(Role.ADMIN);
+        if (configuredAdmin.getPasswordHash() == null || !passwordEncoder.matches(password, configuredAdmin.getPasswordHash())) {
+            configuredAdmin.setPasswordHash(passwordEncoder.encode(password));
+        }
+        User savedConfiguredAdmin = userRepository.save(configuredAdmin);
+
+        // Ensure no other admin user remains in the system.
+        List<User> allAdmins = userRepository.findByRole(Role.ADMIN);
+        for (User adminUser : allAdmins) {
+            if (!adminUser.getId().equals(savedConfiguredAdmin.getId())) {
+                adminUser.setRole(Role.USER);
+                userRepository.save(adminUser);
+            }
+        }
+
+        // Keep exactly one row in admin table for configured admin.
+        for (Admin adminRecord : adminRepository.findAll()) {
+            if (!adminRecord.getUser().getId().equals(savedConfiguredAdmin.getId())) {
+                adminRepository.delete(adminRecord);
+            }
+        }
+        if (adminRepository.findByUser(savedConfiguredAdmin).isEmpty()) {
+            Admin admin = new Admin();
+            admin.setUser(savedConfiguredAdmin);
+            adminRepository.save(admin);
+        }
+
+        return savedConfiguredAdmin;
     }
 }

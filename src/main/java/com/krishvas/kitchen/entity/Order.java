@@ -1,5 +1,6 @@
 package com.krishvas.kitchen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,10 +24,12 @@ public class Order {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User user;
 
     @ManyToOne
     @JoinColumn(name = "delivery_partner_id")
+    @JsonIgnore
     private DeliveryPartner deliveryPartner;
 
     @Enumerated(EnumType.STRING)

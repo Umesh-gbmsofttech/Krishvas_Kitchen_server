@@ -1,5 +1,6 @@
 package com.krishvas.kitchen.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,6 +18,7 @@ public class MenuItem {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "menu_id")
+    @JsonIgnore
     private Menu menu;
 
     @Column(nullable = false)

@@ -18,6 +18,10 @@ public class BannerService {
         return heroBannerRepository.findByActiveTrueOrderByPositionOrderAsc();
     }
 
+    public List<HeroBanner> allBanners() {
+        return heroBannerRepository.findAllByOrderByPositionOrderAsc();
+    }
+
     public HeroBanner save(HeroBannerRequest request) {
         HeroBanner banner = new HeroBanner();
         banner.setTitle(request.title());
@@ -26,5 +30,9 @@ public class BannerService {
         banner.setPositionOrder(request.positionOrder());
         banner.setActive(request.active());
         return heroBannerRepository.save(banner);
+    }
+
+    public void delete(Long bannerId) {
+        heroBannerRepository.deleteById(bannerId);
     }
 }
