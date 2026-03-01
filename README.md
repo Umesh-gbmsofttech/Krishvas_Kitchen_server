@@ -1,54 +1,36 @@
-# Krishva's Kitchen - Spring Boot Backend
+# Krishva's Kitchen Server
 
-Production backend for Krishva's Kitchen.
+## Purpose
+- Powers menu, order, delivery, and notification flows for the Krishva's Kitchen app.
 
-## Stack
-- Spring Boot 3.3
-- Spring Security + JWT
-- Spring Data JPA (MySQL)
-- Spring WebSocket (STOMP)
-- Swagger/OpenAPI
-- Render-ready Docker deployment
+## User Flow Support
 
-## Core APIs
-- `/api/auth` register/login
-- `/api/menus` daily menu, scheduler, suggestions, banners
-- `/api/orders` place order, tracking, status updates, assignment
-- `/api/delivery-partners` apply, approval, dashboard
-- `/api/tracking` delivery live location updates
-- `/api/payments` COD/UPI/mock payment records
-- `/api/notifications` list, unread count, read update
-- `/api/admin` dashboard, users, banners
+### 1. Menu Flow
+- Shows today's menu to users.
+- If today's menu is missing, shows the latest scheduled menu.
+- Supports menu scheduling for upcoming days.
 
-## Realtime topics
-- `/topic/notifications/user/{userId}`
-- `/topic/notifications/admin`
-- `/topic/orders/{orderId}`
+### 2. Order Flow
+- Accepts cart checkout requests.
+- Creates unique order IDs.
+- Stores payment choice (COD/UPI).
+- Shares order status updates for tracking.
 
-WebSocket endpoint: `/ws`
+### 3. Delivery Partner Flow
+- Accepts delivery partner applications from users.
+- Sends request to admin for approval.
+- Updates partner status after admin decision.
+- Stores live location updates for active orders.
 
-## Local run
-```bash
-./mvnw spring-boot:run
-```
+### 4. Admin Flow
+- Lets admin manage menus and scheduled menus.
+- Lets admin manage orders and delivery assignments.
+- Lets admin approve/reject delivery partner requests.
+- Provides summary view for users, orders, and partner requests.
 
-## Environment variables
-- `DB_URL`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `JWT_SECRET`
-- `JWT_EXPIRATION_MS`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-- `ADMIN_NAME`
-
-## Render deployment
-- `Dockerfile` included
-- `render.yaml` included
-- Set DB/JWT env vars in Render dashboard
-
-## Seed data
-On first run:
-- Admin user seeded from env vars
-- 2 realistic sample menus + items seeded automatically
-# Krishvas_Kitchen_server
+### 5. Notification Flow
+- Sends real-time notifications for:
+- new orders
+- status updates
+- delivery assignments
+- delivery partner registrations
