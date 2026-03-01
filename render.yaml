@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: krishva-kitchen-server
+    env: docker
+    plan: free
+    rootDir: Krishva-s-Kitchen
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_EMAIL
+        value: admin@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
