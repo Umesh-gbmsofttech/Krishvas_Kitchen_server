@@ -2,6 +2,7 @@ package com.krishvas.kitchen.service;
 
 import com.krishvas.kitchen.dto.OrderItemRequest;
 import com.krishvas.kitchen.dto.PlaceOrderRequest;
+import com.krishvas.kitchen.dto.VerifyDeliveryOtpRequest;
 import com.krishvas.kitchen.entity.*;
 import com.krishvas.kitchen.repository.DeliveryPartnerRepository;
 import com.krishvas.kitchen.repository.MenuItemRepository;
@@ -12,11 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -87,7 +90,7 @@ public class OrderService {
     }
 
     public List<Order> allOrders() {
-        return orderRepository.findAll();
+        return orderRepository.findAllByOrderByCreatedAtDesc();
     }
 
     public Order getByOrderId(String orderId) {
@@ -128,6 +131,7 @@ public class OrderService {
         }
         order.setDeliveryPartner(partner);
         order.setStatus(OrderStatus.OUT_FOR_DELIVERY);
+        order.setDeliveryOtp(generateDeliveryOtp());
         order.setUpdatedAt(java.time.Instant.now());
         Order saved = orderRepository.save(order);
 
@@ -138,7 +142,72 @@ public class OrderService {
             "You have a new delivery: " + orderId,
             "{\"orderId\":\"" + orderId + "\"}"
         );
+        notificationService.createForUser(
+            saved.getUser(),
+            NotificationType.ORDER_STATUS,
+            "Your order is on the way",
+            "Order " + orderId + " is out for delivery. OTP: " + saved.getDeliveryOtp(),
+            "{\"orderId\":\"" + orderId + "\",\"otp\":\"" + saved.getDeliveryOtp() + "\"}"
+        );
         return saved;
+    }
+
+    @Transactional
+    public Order verifyDeliveryOtp(String orderId, User deliveryUser, VerifyDeliveryOtpRequest request) {
+        Order order = getByOrderId(orderId);
+        if (order.getDeliveryPartner() == null || order.getDeliveryPartner().getUser() == null) {
+            throw new IllegalArgumentException("No delivery partner assigned");
+        }
+        if (!order.getDeliveryPartner().getUser().getId().equals(deliveryUser.getId())) {
+            throw new IllegalArgumentException("Only assigned delivery partner can verify OTP");
+        }
+        if (request == null || request.otp() == null || request.otp().isBlank()) {
+            throw new IllegalArgumentException("OTP is required");
+        }
+        if (order.getDeliveryOtp() == null || !order.getDeliveryOtp().equals(request.otp().trim())) {
+            throw new IllegalArgumentException("Invalid OTP");
+        }
+        order.setStatus(OrderStatus.DELIVERED);
+        order.setOtpVerifiedAt(Instant.now());
+        order.setUpdatedAt(Instant.now());
+        Order saved = orderRepository.save(order);
+
+        notificationService.createForUser(
+            saved.getUser(),
+            NotificationType.ORDER_STATUS,
+            "Order delivered",
+            "Order " + orderId + " has been delivered successfully.",
+            "{\"orderId\":\"" + orderId + "\",\"status\":\"DELIVERED\"}"
+        );
+        return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> assignedOrders(User deliveryUser) {
+        DeliveryPartner partner = deliveryPartnerRepository.findByUser(deliveryUser)
+            .orElseThrow(() -> new IllegalArgumentException("Delivery partner profile not found"));
+        return orderRepository.findByDeliveryPartnerOrderByCreatedAtDesc(partner).stream().map(order -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", order.getId());
+            map.put("orderId", order.getOrderId());
+            map.put("status", order.getStatus());
+            map.put("totalAmount", order.getTotalAmount());
+            map.put("addressLine", order.getAddressLine());
+            map.put("apartmentOrSociety", order.getApartmentOrSociety());
+            map.put("flatNumber", order.getFlatNumber());
+            map.put("latitude", order.getLatitude());
+            map.put("longitude", order.getLongitude());
+            map.put("deliveryOtp", order.getDeliveryOtp());
+            map.put("createdAt", order.getCreatedAt());
+            map.put("customerName", order.getUser() != null ? order.getUser().getFullName() : null);
+            map.put("customerPhone", order.getUser() != null ? order.getUser().getPhone() : null);
+            return map;
+        }).collect(Collectors.toList());
+    }
+
+    private String generateDeliveryOtp() {
+        int otp = 1000 + (int) (Math.random() * 9000);
+        return String.valueOf(otp);
     }
 
     private String generateOrderId() {

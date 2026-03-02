@@ -41,7 +41,19 @@ public class DeliveryPartnerController {
     @PatchMapping("/{partnerId}/decision")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> decision(@PathVariable Long partnerId, @RequestBody DeliveryPartnerDecisionRequest request) {
-        return ResponseEntity.ok(deliveryService.decide(partnerId, request.approve()));
+        return ResponseEntity.ok(deliveryService.decide(partnerId, request));
+    }
+
+    @PatchMapping("/{partnerId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> updatePartner(@PathVariable Long partnerId, @RequestBody DeliveryPartnerDecisionRequest request) {
+        return ResponseEntity.ok(deliveryService.updatePartner(partnerId, request));
+    }
+
+    @GetMapping("/approved")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> approved() {
+        return ResponseEntity.ok(deliveryService.approvedPartners());
     }
 
     @GetMapping("/dashboard")

@@ -70,6 +70,11 @@ public class Order {
     @Column(nullable = false)
     private Instant updatedAt = Instant.now();
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(length = 6)
+    private String deliveryOtp;
+
+    private Instant otpVerifiedAt;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<OrderItem> items = new ArrayList<>();
 }

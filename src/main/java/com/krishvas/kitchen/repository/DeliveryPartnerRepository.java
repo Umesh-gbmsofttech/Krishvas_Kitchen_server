@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface DeliveryPartnerRepository extends JpaRepository<DeliveryPartner, Long> {
     Optional<DeliveryPartner> findByUser(User user);
     List<DeliveryPartner> findByStatus(DeliveryPartnerStatus status);
+    List<DeliveryPartner> findByStatusOrderByAppliedAtDesc(DeliveryPartnerStatus status);
 }

@@ -31,6 +31,9 @@ public class TrackingService {
             .orElseThrow(() -> new IllegalArgumentException("Order not found"));
         DeliveryPartner partner = deliveryPartnerRepository.findByUser(user)
             .orElseThrow(() -> new IllegalArgumentException("Delivery partner profile not found"));
+        if (order.getDeliveryPartner() == null || !order.getDeliveryPartner().getId().equals(partner.getId())) {
+            throw new IllegalArgumentException("You are not assigned to this order");
+        }
 
         DeliveryTracking tracking = new DeliveryTracking();
         tracking.setOrder(order);

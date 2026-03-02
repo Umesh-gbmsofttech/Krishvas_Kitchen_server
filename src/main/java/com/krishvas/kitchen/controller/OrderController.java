@@ -2,6 +2,7 @@ package com.krishvas.kitchen.controller;
 
 import com.krishvas.kitchen.dto.PlaceOrderRequest;
 import com.krishvas.kitchen.dto.UpdateOrderStatusRequest;
+import com.krishvas.kitchen.dto.VerifyDeliveryOtpRequest;
 import com.krishvas.kitchen.entity.User;
 import com.krishvas.kitchen.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -61,5 +62,23 @@ public class OrderController {
     @GetMapping("/{orderId}/track")
     public ResponseEntity<?> track(@PathVariable String orderId) {
         return ResponseEntity.ok(Map.of("order", orderService.getByOrderId(orderId)));
+    }
+
+    @GetMapping("/assigned/me")
+    @PreAuthorize("hasRole('DELIVERY_PARTNER')")
+    public ResponseEntity<?> assigned(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(orderService.assignedOrders(user));
+    }
+
+    @PatchMapping("/{orderId}/verify-otp")
+    @PreAuthorize("hasRole('DELIVERY_PARTNER')")
+    public ResponseEntity<?> verifyOtp(
+        @PathVariable String orderId,
+        @RequestBody VerifyDeliveryOtpRequest request,
+        Authentication authentication
+    ) {
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(orderService.verifyDeliveryOtp(orderId, user, request));
     }
 }

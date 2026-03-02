@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Getter
@@ -25,6 +26,12 @@ public class DeliveryPartner {
 
     private String vehicleType;
     private String vehicleNumber;
+
+    @Enumerated(EnumType.STRING)
+    private DeliverySalaryType salaryType;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal salaryAmount;
 
     private Instant approvedAt;
     private Instant rejectedAt;
