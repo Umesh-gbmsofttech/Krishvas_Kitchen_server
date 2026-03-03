@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +49,12 @@ public class Order {
     @Column(nullable = false)
     private String addressLine;
 
+    @Column(nullable = false)
+    private LocalDate orderDate = LocalDate.now();
+
+    @Column(nullable = false)
+    private String orderSlot = "ALL";
+
     @Column(nullable = false, precision = 10, scale = 7)
     private BigDecimal latitude;
 
@@ -72,6 +79,8 @@ public class Order {
 
     @Column(length = 6)
     private String deliveryOtp;
+
+    private Instant deliveryAcceptedAt;
 
     private Instant otpVerifiedAt;
 

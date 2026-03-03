@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,21 +44,41 @@ public class MenuService {
     }
 
     public Menu dailyMenu() {
-        LocalDate today = LocalDate.now();
-        return menuRepository.findByScheduleDate(today)
-            .or(() -> menuRepository.findByScheduleDateLessThanEqualOrderByScheduleDateDesc(today).stream().findFirst())
-            .orElseGet(() -> {
-                Menu empty = new Menu();
-                empty.setTitle("Today's Menu");
-                empty.setDescription("No menu scheduled yet.");
-                empty.setScheduleDate(today);
-                empty.setTemplate(false);
-                return empty;
-            });
+        return menuForDate(LocalDate.now());
+    }
+
+    public Menu menuForDate(LocalDate date) {
+        if (date.isEqual(LocalDate.now())) {
+            return menuRepository.findByScheduleDate(date)
+                .or(() -> menuRepository.findByScheduleDateLessThanEqualOrderByScheduleDateDesc(date).stream().findFirst())
+                .orElseGet(() -> {
+                    Menu empty = new Menu();
+                    empty.setTitle("Today's Menu");
+                    empty.setDescription("No menu scheduled yet.");
+                    empty.setScheduleDate(date);
+                    empty.setTemplate(false);
+                    empty.setMealSlots("ALL");
+                    return empty;
+                });
+        }
+        return menuRepository.findByScheduleDate(date).orElseGet(() -> {
+            Menu empty = new Menu();
+            empty.setTitle("Menu");
+            empty.setDescription("No menu scheduled for selected date.");
+            empty.setScheduleDate(date);
+            empty.setTemplate(false);
+            empty.setMealSlots("ALL");
+            return empty;
+        });
     }
 
     public List<Menu> listScheduled(LocalDate start, LocalDate end) {
         return menuRepository.findByScheduleDateBetweenOrderByScheduleDateAsc(start, end);
+    }
+
+    public List<Menu> next7DaysMenus() {
+        LocalDate start = LocalDate.now();
+        return menuRepository.findByScheduleDateBetweenOrderByScheduleDateAsc(start, start.plusDays(6));
     }
 
     public List<Menu> suggestions() {
@@ -67,6 +90,7 @@ public class MenuService {
         menu.setDescription(request.description());
         menu.setScheduleDate(request.scheduleDate());
         menu.setTemplate(request.template());
+        menu.setMealSlots(toMealSlotCsv(request.mealSlots()));
         menu.setCreatedBy(admin);
         for (MenuItemPayload payload : request.items()) {
             MenuItem item = new MenuItem();
@@ -89,5 +113,23 @@ public class MenuService {
         if (date.isAfter(today.plusDays(30))) {
             throw new IllegalArgumentException("Menu can only be scheduled up to 30 days ahead");
         }
+    }
+
+    private String toMealSlotCsv(List<String> slots) {
+        List<String> normalized = new ArrayList<>();
+        for (String slot : slots == null ? List.<String>of() : slots) {
+            String s = slot == null ? "" : slot.trim().toUpperCase(Locale.ROOT);
+            if (s.isBlank()) continue;
+            if (List.of("ALL", "BREAKFAST", "LUNCH", "DINNER").contains(s)) {
+                normalized.add(s);
+            }
+        }
+        if (normalized.isEmpty()) {
+            normalized.add("ALL");
+        }
+        if (normalized.contains("ALL")) {
+            return "ALL";
+        }
+        return normalized.stream().distinct().collect(Collectors.joining(","));
     }
 }

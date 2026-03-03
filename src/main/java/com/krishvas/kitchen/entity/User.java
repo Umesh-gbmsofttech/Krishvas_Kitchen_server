@@ -34,6 +34,9 @@ public class User {
 
     private boolean deliveryBadge;
 
+    @Column(nullable = false)
+    private boolean deliveryModeActive = true;
+
     private Long profileImageId;
 
     @Column(nullable = false)

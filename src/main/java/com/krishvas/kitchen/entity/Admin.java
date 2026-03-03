@@ -21,4 +21,18 @@ public class Admin {
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
+
+    @Column(nullable = false)
+    private boolean kitchenActive = true;
+
+    @Column(nullable = false)
+    private boolean darkMode = false;
+
+    @Column(nullable = false)
+    private Instant updatedAt = Instant.now();
+
+    @PreUpdate
+    public void touchUpdatedAt() {
+        this.updatedAt = Instant.now();
+    }
 }

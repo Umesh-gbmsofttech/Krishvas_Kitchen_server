@@ -69,6 +69,7 @@ public class AuthService {
             current.getPhone(),
             current.getRole(),
             current.isDeliveryBadge(),
+            current.isDeliveryModeActive(),
             imageUrlService.toImageUrl(current.getProfileImageId())
         );
     }
@@ -93,6 +94,16 @@ public class AuthService {
         if (request.phone() != null) {
             current.setPhone(request.phone().trim());
         }
+        userRepository.save(current);
+        return profile(current);
+    }
+
+    public UserProfileResponse updateDeliveryMode(User user, boolean deliveryModeActive) {
+        User current = userRepository.findById(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (!current.isDeliveryBadge() || current.getRole() != Role.DELIVERY_PARTNER) {
+            throw new IllegalArgumentException("Only approved delivery partners can switch delivery mode");
+        }
+        current.setDeliveryModeActive(deliveryModeActive);
         userRepository.save(current);
         return profile(current);
     }

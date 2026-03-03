@@ -9,5 +9,6 @@ public record UserProfileResponse(
     String phone,
     Role role,
     boolean deliveryBadge,
+    boolean deliveryModeActive,
     String profileImageUrl
 ) {}

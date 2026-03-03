@@ -1,5 +1,6 @@
 package com.krishvas.kitchen.controller;
 
+import com.krishvas.kitchen.dto.DeliveryModeRequest;
 import com.krishvas.kitchen.dto.UpdateProfileRequest;
 import com.krishvas.kitchen.entity.User;
 import com.krishvas.kitchen.service.AuthService;
@@ -30,6 +31,13 @@ public class ProfileController {
     public ResponseEntity<?> updateMe(@RequestBody UpdateProfileRequest request, Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         return ResponseEntity.ok(authService.updateProfile(user, request));
+    }
+
+    @PatchMapping("/delivery-mode")
+    @PreAuthorize("hasAnyRole('USER','DELIVERY_PARTNER')")
+    public ResponseEntity<?> updateDeliveryMode(@RequestBody DeliveryModeRequest request, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(authService.updateDeliveryMode(user, request.deliveryModeActive()));
     }
 
     @PostMapping("/image")

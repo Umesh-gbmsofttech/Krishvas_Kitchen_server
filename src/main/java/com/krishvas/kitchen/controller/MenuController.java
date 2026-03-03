@@ -25,8 +25,15 @@ public class MenuController {
     private final BannerService bannerService;
 
     @GetMapping("/daily")
-    public ResponseEntity<?> daily() {
-        return ResponseEntity.ok(menuService.dailyMenu());
+    public ResponseEntity<?> daily(
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(date == null ? menuService.dailyMenu() : menuService.menuForDate(date));
+    }
+
+    @GetMapping("/next-7")
+    public ResponseEntity<?> next7() {
+        return ResponseEntity.ok(menuService.next7DaysMenus());
     }
 
     @GetMapping("/scheduled")

@@ -8,5 +8,6 @@ public record MenuRequest(
     String description,
     LocalDate scheduleDate,
     boolean template,
+    List<String> mealSlots,
     List<MenuItemPayload> items
 ) {}

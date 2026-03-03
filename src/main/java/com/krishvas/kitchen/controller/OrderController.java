@@ -71,6 +71,13 @@ public class OrderController {
         return ResponseEntity.ok(orderService.assignedOrders(user));
     }
 
+    @PatchMapping("/{orderId}/accept")
+    @PreAuthorize("hasRole('DELIVERY_PARTNER')")
+    public ResponseEntity<?> acceptAssignedOrder(@PathVariable String orderId, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(orderService.acceptAssignedDelivery(orderId, user));
+    }
+
     @PatchMapping("/{orderId}/verify-otp")
     @PreAuthorize("hasRole('DELIVERY_PARTNER')")
     public ResponseEntity<?> verifyOtp(

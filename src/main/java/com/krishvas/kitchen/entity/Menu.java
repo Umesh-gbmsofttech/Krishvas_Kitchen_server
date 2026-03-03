@@ -31,6 +31,9 @@ public class Menu {
     @Column(nullable = false)
     private boolean template;
 
+    @Column(nullable = false)
+    private String mealSlots = "ALL";
+
     @ManyToOne
     @JoinColumn(name = "created_by_user_id")
     @JsonIgnore

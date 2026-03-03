@@ -83,6 +83,7 @@ public class DeliveryService {
             User user = partner.getUser();
             user.setRole(Role.DELIVERY_PARTNER);
             user.setDeliveryBadge(true);
+            user.setDeliveryModeActive(true);
             notificationService.createForUser(
                 user,
                 NotificationType.DELIVERY_PARTNER_APPROVED,
@@ -110,7 +111,9 @@ public class DeliveryService {
     }
 
     public List<DeliveryPartner> approvedPartners() {
-        return deliveryPartnerRepository.findByStatusOrderByAppliedAtDesc(DeliveryPartnerStatus.APPROVED);
+        return deliveryPartnerRepository.findByStatusOrderByAppliedAtDesc(DeliveryPartnerStatus.APPROVED).stream()
+            .filter(partner -> partner.getUser() != null && partner.getUser().isDeliveryModeActive())
+            .toList();
     }
 
     public Map<String, Object> dashboard(User deliveryUser) {
