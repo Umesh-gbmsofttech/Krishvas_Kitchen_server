@@ -51,6 +51,7 @@ public class MenuService {
         if (date.isEqual(LocalDate.now())) {
             return menuRepository.findByScheduleDate(date)
                 .or(() -> menuRepository.findByScheduleDateLessThanEqualOrderByScheduleDateDesc(date).stream().findFirst())
+                .or(() -> menuRepository.findByScheduleDateGreaterThanEqualOrderByScheduleDateAsc(date).stream().findFirst())
                 .orElseGet(() -> {
                     Menu empty = new Menu();
                     empty.setTitle("Today's Menu");

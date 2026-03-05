@@ -7,6 +7,8 @@ import com.krishvas.kitchen.entity.*;
 import com.krishvas.kitchen.repository.DeliveryPartnerRepository;
 import com.krishvas.kitchen.repository.MenuItemRepository;
 import com.krishvas.kitchen.repository.OrderRepository;
+import com.krishvas.kitchen.repository.PaymentRepository;
+import com.stripe.model.PaymentIntent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +31,9 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MenuItemRepository menuItemRepository;
     private final DeliveryPartnerRepository deliveryPartnerRepository;
+    private final PaymentRepository paymentRepository;
     private final NotificationService notificationService;
+    private final StripeService stripeService;
 
     @Transactional
     public Order placeOrder(User user, PlaceOrderRequest request) {
@@ -55,7 +60,7 @@ public class OrderService {
         order.setLatitude(request.latitude());
         order.setLongitude(request.longitude());
         order.setPaymentMethod(request.paymentMethod());
-        order.setPaymentStatus(request.paymentMethod() == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.SUCCESS);
+        order.setPaymentStatus(PaymentStatus.PENDING);
         order.setNotes(request.notes());
 
         BigDecimal total = BigDecimal.ZERO;
@@ -75,7 +80,28 @@ public class OrderService {
         }
         order.setTotalAmount(total);
 
+        PaymentIntent paidIntent = null;
+        if (request.paymentMethod() == PaymentMethod.STRIPE) {
+            Long expectedMinor = total.multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValue();
+            paidIntent = stripeService.validateSucceededIntent(request.stripePaymentIntentId(), expectedMinor);
+            order.setPaymentStatus(PaymentStatus.SUCCESS);
+        } else if (request.paymentMethod() == PaymentMethod.COD) {
+            order.setPaymentStatus(PaymentStatus.PENDING);
+        }
+
         Order saved = orderRepository.save(order);
+        if (request.paymentMethod() == PaymentMethod.STRIPE && paidIntent != null) {
+            Payment payment = new Payment();
+            payment.setOrder(saved);
+            payment.setAmount(saved.getTotalAmount());
+            payment.setMethod(PaymentMethod.STRIPE);
+            payment.setProvider("STRIPE");
+            payment.setStatus(PaymentStatus.SUCCESS);
+            payment.setTransactionRef(paidIntent.getId());
+            paymentRepository.save(payment);
+        }
 
         Map<String, Object> adminPayload = new HashMap<>();
         adminPayload.put("event", "NEW_ORDER");
@@ -175,6 +201,73 @@ public class OrderService {
         payload.put("deliveryPartnerId", partner.getId());
         notificationService.publishRoleEvent("admin", payload);
         return saved;
+    }
+
+    @Transactional
+    public Map<String, Object> assignDeliveryBulk(Long deliveryPartnerId, List<String> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one order is required");
+        }
+        if (orderIds.size() > 50) {
+            throw new IllegalArgumentException("Maximum 50 orders can be assigned at once");
+        }
+        DeliveryPartner partner = deliveryPartnerRepository.findById(deliveryPartnerId)
+            .orElseThrow(() -> new IllegalArgumentException("Delivery partner not found"));
+        if (partner.getStatus() != DeliveryPartnerStatus.APPROVED) {
+            throw new IllegalArgumentException("Delivery partner is not approved");
+        }
+        if (partner.getUser() == null || !partner.getUser().isDeliveryModeActive()) {
+            throw new IllegalArgumentException("Selected delivery partner is currently in customer mode");
+        }
+
+        int assignedCount = 0;
+        List<String> assignedIds = new java.util.ArrayList<>();
+        for (String orderId : orderIds) {
+            Order order = getByOrderId(orderId);
+            if (order.getOrderDate() == null || !order.getOrderDate().isEqual(LocalDate.now())) {
+                continue;
+            }
+            if (List.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED).contains(order.getStatus())) {
+                continue;
+            }
+            order.setDeliveryPartner(partner);
+            order.setStatus(OrderStatus.CONFIRMED);
+            order.setDeliveryOtp(generateDeliveryOtp());
+            order.setDeliveryAcceptedAt(null);
+            order.setUpdatedAt(Instant.now());
+            orderRepository.save(order);
+            assignedCount++;
+            assignedIds.add(order.getOrderId());
+            notificationService.createForUser(
+                order.getUser(),
+                NotificationType.ORDER_STATUS,
+                "Delivery partner assigned",
+                "Order " + order.getOrderId() + " was assigned to a delivery partner and is waiting for pickup confirmation.",
+                "{\"orderId\":\"" + order.getOrderId() + "\",\"status\":\"CONFIRMED\"}"
+            );
+        }
+        if (!assignedIds.isEmpty() && partner.getUser() != null) {
+            notificationService.createForUser(
+                partner.getUser(),
+                NotificationType.DELIVERY_ASSIGNED,
+                "Delivery requests assigned",
+                "You have " + assignedIds.size() + " new delivery request(s).",
+                "{\"orderIds\":\"" + String.join(",", assignedIds) + "\"}"
+            );
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("event", "DELIVERY_ASSIGNED_BULK");
+            payload.put("orderIds", assignedIds);
+            payload.put("deliveryPartnerId", partner.getId());
+            payload.put("status", OrderStatus.CONFIRMED);
+            payload.put("updatedAt", Instant.now());
+            notificationService.publishRoleEvent("admin", payload);
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("deliveryPartnerId", deliveryPartnerId);
+        result.put("requestedCount", orderIds.size());
+        result.put("assignedCount", assignedCount);
+        result.put("orderIds", assignedIds);
+        return result;
     }
 
     @Transactional

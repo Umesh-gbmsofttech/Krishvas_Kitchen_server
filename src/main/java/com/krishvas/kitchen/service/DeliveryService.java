@@ -1,12 +1,15 @@
 package com.krishvas.kitchen.service;
 
 import com.krishvas.kitchen.dto.DeliveryPartnerApplyRequest;
+import com.krishvas.kitchen.dto.AdminCreateDeliveryPartnerRequest;
 import com.krishvas.kitchen.dto.DeliveryPartnerDecisionRequest;
 import com.krishvas.kitchen.entity.*;
 import com.krishvas.kitchen.repository.DeliveryPartnerRepository;
 import com.krishvas.kitchen.repository.DeliveryTrackingRepository;
 import com.krishvas.kitchen.repository.OrderRepository;
+import com.krishvas.kitchen.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,32 +30,57 @@ public class DeliveryService {
     private final DeliveryPartnerRepository deliveryPartnerRepository;
     private final OrderRepository orderRepository;
     private final DeliveryTrackingRepository deliveryTrackingRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
 
     @Transactional
     public DeliveryPartner apply(User user, DeliveryPartnerApplyRequest request) {
-        if (user.getRole() != Role.USER && user.getRole() != Role.DELIVERY_PARTNER) {
-            throw new IllegalArgumentException("Only app users can apply");
+        throw new IllegalArgumentException("Self registration for delivery partner is disabled. Admin can add delivery partners.");
+    }
+
+    @Transactional
+    public DeliveryPartner createByAdmin(AdminCreateDeliveryPartnerRequest request) {
+        if (request == null || request.email() == null || request.email().isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        if (request.password() == null || request.password().isBlank()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+        if (request.fullName() == null || request.fullName().isBlank()) {
+            throw new IllegalArgumentException("Full name is required");
+        }
+        boolean hasSalaryType = request.salaryType() != null;
+        boolean hasSalaryAmount = request.salaryAmount() != null && request.salaryAmount().compareTo(BigDecimal.ZERO) > 0;
+        if (hasSalaryType ^ hasSalaryAmount) {
+            throw new IllegalArgumentException("Salary type and positive salary amount must be provided together");
         }
 
-        DeliveryPartner partner = deliveryPartnerRepository.findByUser(user).orElseGet(() -> {
+        String email = request.email().trim().toLowerCase();
+        User user = userRepository.findByEmail(email).orElseGet(User::new);
+        user.setEmail(email);
+        user.setFullName(request.fullName().trim());
+        user.setPhone(request.phone() == null ? null : request.phone().trim());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setRole(Role.DELIVERY_PARTNER);
+        user.setDeliveryBadge(true);
+        user.setDeliveryModeActive(true);
+        User savedUser = userRepository.save(user);
+
+        DeliveryPartner partner = deliveryPartnerRepository.findByUser(savedUser).orElseGet(() -> {
             DeliveryPartner p = new DeliveryPartner();
-            p.setUser(user);
+            p.setUser(savedUser);
             return p;
         });
-
-        partner.setVehicleType(request.vehicleType());
-        partner.setVehicleNumber(request.vehicleNumber());
-        partner.setStatus(DeliveryPartnerStatus.PENDING);
-        DeliveryPartner saved = deliveryPartnerRepository.save(partner);
-
-        Map<String, Object> adminPayload = new HashMap<>();
-        adminPayload.put("event", "NEW_DELIVERY_PARTNER_REQUEST");
-        adminPayload.put("userId", user.getId());
-        adminPayload.put("name", user.getFullName());
-        notificationService.publishRoleEvent("admin", adminPayload);
-
-        return saved;
+        String vehicleType = request.vehicleType() == null ? null : request.vehicleType().trim();
+        String vehicleNumber = request.vehicleNumber() == null ? null : request.vehicleNumber().trim();
+        partner.setVehicleType(vehicleType == null || vehicleType.isBlank() ? null : vehicleType);
+        partner.setVehicleNumber(vehicleNumber == null || vehicleNumber.isBlank() ? null : vehicleNumber);
+        partner.setStatus(DeliveryPartnerStatus.APPROVED);
+        partner.setSalaryType(hasSalaryType ? request.salaryType() : null);
+        partner.setSalaryAmount(hasSalaryAmount ? request.salaryAmount() : null);
+        partner.setApprovedAt(Instant.now());
+        return deliveryPartnerRepository.save(partner);
     }
 
     public DeliveryPartner myStatus(User user) {

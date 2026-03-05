@@ -15,6 +15,7 @@ public record PlaceOrderRequest(
     LocalDate orderDate,
     String orderSlot,
     PaymentMethod paymentMethod,
+    String stripePaymentIntentId,
     String notes,
     List<OrderItemRequest> items
 ) {}

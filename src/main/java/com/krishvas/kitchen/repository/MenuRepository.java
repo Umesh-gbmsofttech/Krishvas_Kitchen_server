@@ -11,5 +11,6 @@ public interface MenuRepository extends JpaRepository<Menu, Long> {
     Optional<Menu> findByScheduleDate(LocalDate scheduleDate);
     List<Menu> findByScheduleDateBetweenOrderByScheduleDateAsc(LocalDate start, LocalDate end);
     List<Menu> findByScheduleDateLessThanEqualOrderByScheduleDateDesc(LocalDate date);
+    List<Menu> findByScheduleDateGreaterThanEqualOrderByScheduleDateAsc(LocalDate date);
     List<Menu> findTop15ByOrderByCreatedAtDesc();
 }

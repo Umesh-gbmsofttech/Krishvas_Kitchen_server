@@ -2,6 +2,7 @@ package com.krishvas.kitchen.controller;
 
 import com.krishvas.kitchen.dto.DeliveryPartnerApplyRequest;
 import com.krishvas.kitchen.dto.DeliveryPartnerDecisionRequest;
+import com.krishvas.kitchen.dto.AdminCreateDeliveryPartnerRequest;
 import com.krishvas.kitchen.entity.User;
 import com.krishvas.kitchen.service.DeliveryService;
 import lombok.RequiredArgsConstructor;
@@ -19,10 +20,16 @@ public class DeliveryPartnerController {
     private final DeliveryService deliveryService;
 
     @PostMapping("/apply")
-    @PreAuthorize("hasAnyRole('USER','DELIVERY_PARTNER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> apply(@RequestBody DeliveryPartnerApplyRequest request, Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         return ResponseEntity.ok(deliveryService.apply(user, request));
+    }
+
+    @PostMapping("/admin-create")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> adminCreate(@RequestBody AdminCreateDeliveryPartnerRequest request) {
+        return ResponseEntity.ok(deliveryService.createByAdmin(request));
     }
 
     @GetMapping("/my-status")

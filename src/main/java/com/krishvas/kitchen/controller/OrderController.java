@@ -3,6 +3,7 @@ package com.krishvas.kitchen.controller;
 import com.krishvas.kitchen.dto.PlaceOrderRequest;
 import com.krishvas.kitchen.dto.UpdateOrderStatusRequest;
 import com.krishvas.kitchen.dto.VerifyDeliveryOtpRequest;
+import com.krishvas.kitchen.dto.BulkAssignOrdersRequest;
 import com.krishvas.kitchen.entity.User;
 import com.krishvas.kitchen.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,12 @@ public class OrderController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> assign(@PathVariable String orderId, @PathVariable Long partnerId) {
         return ResponseEntity.ok(orderService.assignDelivery(orderId, partnerId));
+    }
+
+    @PatchMapping("/assign/bulk/{partnerId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> assignBulk(@PathVariable Long partnerId, @RequestBody BulkAssignOrdersRequest request) {
+        return ResponseEntity.ok(orderService.assignDeliveryBulk(partnerId, request.orderIds()));
     }
 
     @GetMapping("/{orderId}/track")
