@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krishvas.kitchen.dto.DirectionsRequest;
 import com.krishvas.kitchen.dto.DirectionsResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -19,6 +20,7 @@ public class RoutingService {
 
     private static final String PUBLIC_OSRM_URL = "https://router.project-osrm.org/route/v1/driving/";
     private static final String ORS_URL = "https://api.openrouteservice.org/v2/directions/driving-car";
+    private static final double MAX_DELIVERY_RADIUS_KM = 50.0;
 
     @Value("${api.keys.map.ors:}")
     private String orsKey;
@@ -34,8 +36,18 @@ public class RoutingService {
         this.objectMapper = objectMapper;
     }
 
+    @Cacheable(value = "routes", key = "#root.target.routeCacheKey(#request)")
     public DirectionsResponse getDirections(DirectionsRequest request) {
         validateRequest(request);
+        double straightLineDistanceKm = haversineKm(
+            request.getFromLat(),
+            request.getFromLng(),
+            request.getToLat(),
+            request.getToLng()
+        );
+        if (straightLineDistanceKm > MAX_DELIVERY_RADIUS_KM) {
+            throw new IllegalArgumentException("Destination is outside the serviceable delivery radius.");
+        }
         if (orsKey != null && !orsKey.isBlank()) {
             try {
                 return fetchRouteFromORS(request);
@@ -190,5 +202,27 @@ public class RoutingService {
             || request.getToLng() == null) {
             throw new IllegalArgumentException("Origin and destination coordinates are required.");
         }
+    }
+
+    public String routeCacheKey(DirectionsRequest request) {
+        return String.format(
+            Locale.US,
+            "%.4f,%.4f:%.4f,%.4f",
+            request.getFromLat(),
+            request.getFromLng(),
+            request.getToLat(),
+            request.getToLng()
+        );
+    }
+
+    private double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+            + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+            * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 }
